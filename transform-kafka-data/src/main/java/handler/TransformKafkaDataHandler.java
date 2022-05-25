@@ -20,7 +20,6 @@ public class TransformKafkaDataHandler implements RequestHandler<Map<Object, Obj
 	private S3Config config = new S3Config();
 	private String s3BucketName = "kafka-to-firehose-data";
 
-
 	@Override
 	public String handleRequest(Map<Object, Object> event, Context context) {
 
@@ -53,28 +52,32 @@ public class TransformKafkaDataHandler implements RequestHandler<Map<Object, Obj
 		 * curly braces in a list of String Builder objects
 		 */
 		List<StringBuilder> matchListInString = null;
-		if(s3FileData!=null)
+		if (!s3FileData.isEmpty())
 			matchListInString = service.getStringListOfMatches(s3FileData);
 
 		/*
 		 * 5. For each String objects in the list, store that in a list of Cricket
 		 * Objects
 		 */
-		List<Cricket> cricketList = service.getCricketList(matchListInString);		
 
-		/* 6. For each Cricket Objects in the list, write that data in a CSV file
-		 *    and store it in tmp folder of Lambda 
-		 */
-		String fileName = "/tmp/cricket-results.csv";
-		service.storeCsvFileInTempFolderOfLambda(fileName, cricketList);
+		List<Cricket> cricketList = null;
+		if (matchListInString != null)
+			cricketList = service.getCricketList(matchListInString);
 
 		/*
-		 * 7. Finally Get the CSV file from the tmp folder and store it in the S3 bucket 
+		 * 6. For each Cricket Objects in the list, write that data in a CSV file and
+		 * store it in tmp folder of Lambda
+		 */
+		String fileName = "/tmp/cricket-results.csv";
+		if (cricketList != null)
+			service.storeCsvFileInTempFolderOfLambda(fileName, cricketList);
+
+		/*
+		 * 7. Finally Get the CSV file from the tmp folder and store it in the S3 bucket
 		 * and delete the corresponding file
 		 */
-		if(service.storeCsvFileInS3Bucket(s3BucketName, s3FileName, config.getS3Client()))
+		if (service.storeCsvFileInS3Bucket(s3BucketName, s3FileName, config.getS3Client()))
 			service.deleteOldFile(s3BucketName, s3FileName, config.getS3Client());
-		
 
 		return null;
 	}
