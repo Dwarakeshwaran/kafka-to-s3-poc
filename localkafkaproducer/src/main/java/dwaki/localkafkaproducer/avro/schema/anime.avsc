@@ -1,0 +1,19 @@
+{
+  "namespace": "dwaki.localkafkaproducer.avro.model",
+  "type": "record",
+  "name": "Anime",
+  "fields": [
+    {
+      "name": "animeName",
+      "type": "string"
+    },
+    {
+      "name": "year",
+      "type": "int"
+    },
+    {
+      "name": "rating",
+      "type": "int"
+    }
+  ]
+}
