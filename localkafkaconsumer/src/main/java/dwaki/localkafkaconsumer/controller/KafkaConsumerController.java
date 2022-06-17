@@ -47,6 +47,19 @@ public class KafkaConsumerController {
 	public void listenBilling(@Payload List<BillingValue> value) {
 
 		System.out.println("Billing Value: " + value);
+		
+		AmazonKinesisFirehose firehoseClient = getFirehoseClient();
+
+		PutRecordRequest putRecordRequest = new PutRecordRequest();
+		putRecordRequest.setDeliveryStreamName(deliveryStreamName);
+
+		Record record = new Record().withData(ByteBuffer.wrap(value.toString().getBytes()));
+		putRecordRequest.setRecord(record);
+
+		firehoseClient.putRecord(putRecordRequest);
+		
+		System.out.println("Data Sent!");
+		
 
 	}
 
