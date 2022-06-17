@@ -1,0 +1,16 @@
+{
+  "type": "record",
+  "name": "BillingValue",
+  "namespace": "dwaki.localkafkaconsumer.avro.model",
+
+  "fields": [
+    { "name": "id", "type": "long" },
+    { "name": "alternate_id", "type": "string" },
+    { "name": "invoice_code", "type": [ "null", "string" ] },
+    { "name": "gross_contract", "type": [ "null", { "type": "bytes", "logicalType": "decimal", "precision": 13, "scale": 2 } ] },
+    { "name": "pymts_received", "type": [ "null", { "type": "bytes", "logicalType": "decimal", "precision": 13, "scale": 2 } ] },
+    { "name": "pymts_received_d", "type": [ "null", { "type": "bytes", "logicalType": "decimal", "precision": 13, "scale": 2 } ] },
+    { "name": "contract_pymt", "type": [ "null", { "type": "bytes", "logicalType": "decimal", "precision": 13, "scale": 2 } ] },
+    { "name": "variable_pymt_code", "type": "int" }
+    ]
+}
