@@ -2,6 +2,7 @@ package service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -22,11 +23,13 @@ import com.opencsv.bean.ColumnPositionMappingStrategy;
 import com.opencsv.bean.StatefulBeanToCsv;
 import com.opencsv.bean.StatefulBeanToCsvBuilder;
 
+import model.BillingValue;
 import model.Cricket;
 
 public class TransformKafkaDataService {
 
 	private Cricket cricket;
+	private BillingValue billingValue;
 	private Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
 	public InputStream getStreamFromKey(String s3BucketName, String s3FileName, AmazonS3 s3Client) {
@@ -69,12 +72,12 @@ public class TransformKafkaDataService {
 		return s3FileData;
 	}
 
-	public List<StringBuilder> getStringListOfMatches(String s3FileData) {
+	public List<StringBuilder> stringifyList(String firehoseRawData) {
 		List<StringBuilder> matchList = new ArrayList<StringBuilder>();
 
 		int openBracketCounter = 0;
 		int closeBracketCounter = 0;
-		StringBuilder matches = new StringBuilder(s3FileData);
+		StringBuilder matches = new StringBuilder(firehoseRawData);
 		StringBuilder match = null;
 
 		try {
@@ -128,7 +131,8 @@ public class TransformKafkaDataService {
 			FileWriter fileWriter = new FileWriter(fileName);
 			String[] columns = { "teamA", "teamB", "winner" };
 
-			CustomMappingStrategy<Cricket> mappingStrategy = new CustomMappingStrategy<Cricket>();
+			CustomMappingStrategy<Cricket> mappingStrategy = new CustomMappingStrategy<Cricket>(
+					new String[] { "teamA", "teamB", "winner" });
 			mappingStrategy.setType(Cricket.class);
 			mappingStrategy.setColumnMapping(columns);
 			mappingStrategy.generateHeader();
@@ -151,7 +155,7 @@ public class TransformKafkaDataService {
 
 			// Get CSV File from Temp Folder Of Lambda
 			String tempPath = "/tmp/cricket-results.csv";
-			s3FileName = getModifiedFileName(s3FileName);
+			s3FileName = getModifiedFileName(s3FileName, "-cricket-results");
 
 			// Store the Stream in S3 Bucket
 			PutObjectRequest request = new PutObjectRequest(s3BucketName, s3FileName, new File(tempPath));
@@ -168,7 +172,7 @@ public class TransformKafkaDataService {
 
 	}
 
-	private String getModifiedFileName(String s3FileName) {
+	private String getModifiedFileName(String s3FileName, String appendString) {
 
 		int countSlashes = (int) s3FileName.chars().filter(ch -> ch == '/').count() + 1;
 
@@ -181,7 +185,7 @@ public class TransformKafkaDataService {
 
 		modifiedFileName.setLength(0);
 		modifiedFileName.append(instant.toString());
-		modifiedFileName.append("-cricket-results");
+		modifiedFileName.append(appendString);
 		modifiedFileName.append(".csv");
 
 		directories[directories.length - 1] = modifiedFileName.toString();
@@ -201,12 +205,107 @@ public class TransformKafkaDataService {
 
 	}
 
+	public List<BillingValue> getbillingValueList(List<StringBuilder> billingValueListInString) {
+		List<BillingValue> billingValueList = new ArrayList<BillingValue>();
+		try {
+			for (StringBuilder billingValueInfo : billingValueListInString) {
+
+				System.out.println("Billing Data: " + billingValueInfo);
+				billingValue = gson.fromJson(billingValueInfo.toString(), BillingValue.class);
+				billingValueList.add(billingValue);
+
+			}
+
+		} catch (Exception exception) {
+			System.out.println("Failed to get the Billing Value List Object... " + exception);
+		}
+
+		return billingValueList;
+	}
+
+	public byte[] getByteArrayOfCsvFile(String fileName, List<BillingValue> animeList, int recordSize) {
+		try {
+
+			if (recordSize == 1) {
+				FileWriter fileWriter = new FileWriter(fileName);
+				String[] columns = { "id", "alternate_id", "invoice_code", "gross_contract", "pymts_received",
+						"pymts_received_d","contract_pymt","variable_pymt_code" };
+
+				CustomMappingStrategy<BillingValue> mappingStrategy = new CustomMappingStrategy<BillingValue>(
+						new String[] { "id", "alternate_id", "invoice_code", "gross_contract", "pymts_received",
+								"pymts_received_d","contract_pymt","variable_pymt_code" });
+				mappingStrategy.setType(BillingValue.class);
+				mappingStrategy.setColumnMapping(columns);
+				mappingStrategy.generateHeader();
+
+				StatefulBeanToCsvBuilder<BillingValue> csvBuilder = new StatefulBeanToCsvBuilder<BillingValue>(
+						fileWriter);
+				StatefulBeanToCsv<BillingValue> csvWriter = csvBuilder.withMappingStrategy(mappingStrategy).build();
+				csvWriter.write(animeList);
+
+				fileWriter.close();
+
+				File animeCsvFile = new File(fileName);
+				FileInputStream fileStream = new FileInputStream(animeCsvFile);
+
+				byte[] byteArray = new byte[(int) animeCsvFile.length()];
+
+				fileStream.read(byteArray);
+				fileStream.close();
+
+				return byteArray;
+			} else {
+
+				FileWriter fileWriter = new FileWriter(fileName);
+				String[] columns = { "id", "alternate_id", "invoice_code", "gross_contract", "pymts_received",
+						"pymts_received_d","contract_pymt","variable_pymt_code" };
+
+				ColumnPositionMappingStrategy<BillingValue> mappingStrategy = new ColumnPositionMappingStrategy<BillingValue>();
+				mappingStrategy.setType(BillingValue.class);
+				mappingStrategy.setColumnMapping(columns);
+				mappingStrategy.generateHeader();
+
+				StatefulBeanToCsvBuilder<BillingValue> csvBuilder = new StatefulBeanToCsvBuilder<BillingValue>(
+						fileWriter);
+				StatefulBeanToCsv<BillingValue> csvWriter = csvBuilder.withMappingStrategy(mappingStrategy).build();
+				csvWriter.write(animeList);
+
+				fileWriter.close();
+
+				File animeCsvFile = new File(fileName);
+				FileInputStream fileStream = new FileInputStream(animeCsvFile);
+
+				byte[] byteArray = new byte[(int) animeCsvFile.length()];
+
+				fileStream.read(byteArray);
+				fileStream.close();
+
+				return byteArray;
+
+			}
+
+		} catch (Exception exception) {
+			System.out.println("Failed to Store CSV File in Temp Folder of Lambda " + exception);
+			return null;
+		}
+
+	}
+
 }
 
-class CustomMappingStrategy<T> extends ColumnPositionMappingStrategy<T>{
-    private static final String[] HEADER = new String[] {"teamA", "teamB", "winner"};
-    @Override
-    public String[] generateHeader() {
-        return HEADER;
-    }
+class CustomMappingStrategy<T> extends ColumnPositionMappingStrategy<T> {
+	private String[] HEADER;;
+
+	public CustomMappingStrategy() {
+
+	}
+
+	public CustomMappingStrategy(String[] header) {
+		this.HEADER = header;
+	}
+
+	@Override
+	public String[] generateHeader() {
+		return HEADER;
+	}
 }
