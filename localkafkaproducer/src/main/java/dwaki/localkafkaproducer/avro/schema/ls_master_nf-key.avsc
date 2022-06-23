@@ -1,0 +1,9 @@
+{
+  "type": "record",
+  "name": "MasterKey",
+  "namespace": "com.ids.datamart.avro",
+
+  "fields": [
+    { "name": "id", "type": "long" }
+  ]
+}
